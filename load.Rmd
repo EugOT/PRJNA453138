@@ -1,0 +1,53 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+
+```{r}
+suppressPackageStartupMessages({
+    library(readr)
+    library(stringr)
+    library(dplyr)
+    library(magrittr)
+    library(SingleCellExperiment)
+    library(scater)
+    library(flexmix)
+    library(splines)
+    library(BiocParallel)
+    library(biomaRt)
+    library(miQC)
+    library(Seurat)
+    library(SeuratDisk)
+})
+
+sce <- read_rds("sce_moffitt_2018.rds")
+keep <-
+        sce$cell_type %>%
+        table() %>%
+        names() %>%
+        .[stringr::str_detect(string = .,
+                              pattern = "Unstable",
+                              negate = T)]
+    
+srt <- as.Seurat(sce)
+srt %<>% RenameCells(new.names = str_c("P60_moffit2018_", colnames(srt)))
+rownames(srt@meta.data) <- colnames(srt)
+Idents(srt) <- "cell_type"
+srt %<>% subset(idents = keep %>% .[. %in% Idents(srt)]) 
+
+srt$age <- "P60"
+srt$tech <- "10xv2"
+srt$orig.ident <- str_c(srt$study_id, srt$batch, "POA", sep = "_")
+
+glimpse(srt@meta.data)
+table(srt$orig.ident)
+SaveH5Seurat(srt, filename = "moffit2018_poa.h5Seurat", overwrite = T)
+Convert("moffit2018_poa.h5Seurat", dest = "h5ad")
+
+```
+
+
